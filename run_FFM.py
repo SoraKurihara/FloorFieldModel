@@ -5,7 +5,7 @@ from FloorFieldModel import FloorFieldModel
 
 cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green"])
 
-Map = np.load("Takatsuki_SimpleWall.npy")
+Map = np.load(r"map/Takatsuki_SimpleWall.npy")
 print(Map)
 
 fig, ax = plt.subplots(figsize=(10, 10))
@@ -14,9 +14,9 @@ plt.tight_layout()
 plt.show()
 
 model = FloorFieldModel(
-    r"Takatsuki_SimpleWall.npy",
+    r"map/Takatsuki_SimpleWall.npy",
     num=0,
-    pedestrian_count=100,
+    pedestrian_count=10000,
 )
-model.run(steps=300)
+model.run(steps=10000)
 model.plot()
