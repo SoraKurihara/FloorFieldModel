@@ -246,7 +246,9 @@ class FloorFieldModel:
                 break
 
     def anim(self, frame):
-        data = self.all_data[frame]
+        self.c.execute("SELECT x, y FROM positions WHERE step_id=?", (frame + 1,))
+        data = self.c.fetchall()
+        # data = self.all_data[frame]
         Map = np.copy(self.original)
         for x, y in data:
             Map[int(y), int(x)] = 1
@@ -262,25 +264,18 @@ class FloorFieldModel:
         self.cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green"])
 
         conn = sqlite3.connect(os.path.join("data", f"{self.filename}.db"))
-        c = conn.cursor()
-        c.execute("SELECT seq FROM sqlite_sequence WHERE name=?", ("steps",))
-        last_step_id = c.fetchone()[0]
+        self.c = conn.cursor()
+        self.c.execute("SELECT seq FROM sqlite_sequence WHERE name=?", ("steps",))
+        last_step_id = self.c.fetchone()[0]
 
-        self.all_data = []
         # last_step_idを利用してpositionsテーブルからデータを取得
-        for id in range(1, last_step_id + 1):
-            # for id in range(1, 1 + 1):
-            c.execute("SELECT x, y FROM positions WHERE step_id=?", (id,))
-            data = c.fetchall()
-            self.all_data.append(data)
-
-        conn.close()
 
         self.pbar = tqdm(total=len(self.all_data))
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         ani = animation.FuncAnimation(
-            self.fig, self.anim, frames=len(self.all_data), interval=100
+            self.fig, self.anim, frames=int(last_step_id), interval=100
         )
+        conn.close()
         plt.tick_params(
             labelbottom=False,
             labelleft=False,
