@@ -27,8 +27,7 @@ class CreateMap:
         self.max_lat = lowerright[0]
         self.max_lon = lowerright[1]
         self.name = name
-        if not os.path.exists("map"):
-            os.makedirs("map")
+        os.makedirs("map", exist_ok=True)
         if os.path.exists("Map.json"):
             with open("Map.json", "r") as file:
                 existing_data = json.load(file)
