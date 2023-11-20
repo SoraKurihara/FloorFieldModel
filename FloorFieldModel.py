@@ -62,8 +62,8 @@ class FloorFieldModel:
         CREATE TABLE IF NOT EXISTS positions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             step_id INTEGER,
-            x REAL,
-            y REAL,
+            x INTEGER,
+            y INTEGER,
             FOREIGN KEY(step_id) REFERENCES steps(id)
         )
         """
@@ -163,6 +163,11 @@ class FloorFieldModel:
                 ]
             )
 
+        S_vals = np.array(S_vals)
+        S_max = S_vals.max(axis=0)
+        S_vals = np.where(S_vals == -1, S_max, S_vals)
+        S_vals = S_vals - S_vals.min(axis=0)
+
         # 各方向の移動確率を計算
         probs = np.array(
             [
@@ -231,7 +236,19 @@ class FloorFieldModel:
                 to_remove.append(i)
         self.positions = np.delete(self.positions, to_remove, axis=0)
 
+    def update_DFF(self, alpha=0.2, delta=0.2):
+        center = (1-alpha)*(1-delta)*self.DFF
+        up = alpha*(1-delta)/4*np.roll(self.DFF, shift=1, axis=0)
+        down = alpha*(1-delta)/4*np.roll(self.DFF, shift=-1, axis=0)
+        left = alpha*(1-delta)/4*np.roll(self.DFF, shift=1, axis=1)
+        right = alpha*(1-delta)/4*np.roll(self.DFF, shift=-1, axis=1)
+        self.DFF = center + up + down + left + right
+        self.DFF[self.Map == 2] = 0
+        self.DFF[self.Map == 3] = 0
+        self.DFF[self.Map == 1] += 1
+
     def update(self):
+        self.update_DFF()
         self.Map = np.copy(self.original)
         for pos in self.positions:
             self.Map[tuple(pos)] = 1
@@ -244,6 +261,7 @@ class FloorFieldModel:
             self.update()
             if len(self.positions) == 0:
                 break
+        print(self.DFF)
 
     def anim(self, frame):
         self.c.execute("SELECT x, y FROM positions WHERE step_id=?", (frame + 1,))
@@ -263,19 +281,18 @@ class FloorFieldModel:
 
         self.cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green"])
 
-        conn = sqlite3.connect(os.path.join("data", f"{self.filename}.db"))
-        self.c = conn.cursor()
+        self.conn = sqlite3.connect(os.path.join("data", f"{self.filename}.db"))
+        self.c = self.conn.cursor()
         self.c.execute("SELECT seq FROM sqlite_sequence WHERE name=?", ("steps",))
-        last_step_id = self.c.fetchone()[0]
+        self.last_step_id = self.c.fetchone()[0]
 
         # last_step_idを利用してpositionsテーブルからデータを取得
 
-        self.pbar = tqdm(total=len(self.all_data))
+        self.pbar = tqdm(total=self.last_step_id)
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         ani = animation.FuncAnimation(
-            self.fig, self.anim, frames=int(last_step_id), interval=100
+            self.fig, self.anim, frames=int(self.last_step_id), interval=100
         )
-        conn.close()
         plt.tick_params(
             labelbottom=False,
             labelleft=False,
@@ -287,9 +304,9 @@ class FloorFieldModel:
             top=False,
         )
         # plt.tight_layout()
-        ani.save(os.path.join("video", f"{self.filename}.mp4"), writer="ffmpeg", fps=10)
+        ani.save(os.path.join("output", f"{self.filename}.mp4"), writer="ffmpeg", fps=10)
         plt.show()
-
+        self.conn.close()
 
 # if __name__ == "__main__":
 #     model = FloorFieldModel(
