@@ -27,8 +27,8 @@ class CreateMap:
         self.max_lat = lowerright[0]
         self.max_lon = lowerright[1]
         self.name = name
-        if not os.path.exists("Map"):
-            os.makedirs("Map")
+        if not os.path.exists("map"):
+            os.makedirs("map")
         if os.path.exists("Map.json"):
             with open("Map.json", "r") as file:
                 existing_data = json.load(file)
@@ -103,7 +103,7 @@ class CreateMap:
         grid = np.flipud(grid)
         grid = binary_fill_holes(grid).astype(int)
         print(grid)
-        np.save(rf"Map/{self.name}", grid)
+        np.save(rf"map/{self.name}", grid)
 
         fig, ax = plt.subplots(figsize=(10, 10))
         ax.imshow(grid, cmap="binary", vmin=0, vmax=1)
@@ -130,13 +130,13 @@ class CreateMap:
     def add_wall(self, name=None):
         if name is None:
             name = self.name
-        self.Map = np.load(rf"Map/{name}.npy")
+        self.Map = np.load(rf"map/{name}.npy")
         self.Map[self.Map == 1] = 2
         print(self.Map)
 
         wall = self.simple_wall()
         exit = self.center_exit()
-        np.save(rf"Map/{name}_{wall}_{exit}", self.Map)
+        np.save(rf"map/{name}_{wall}_{exit}", self.Map)
 
         cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green"])
 
