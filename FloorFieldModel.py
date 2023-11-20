@@ -20,6 +20,9 @@ class FloorFieldModel:
     def __init__(
         self, Map, SFF=None, num=0, Position=None, add_name=None, pedestrian_count=1
     ):
+        os.makedirs("map", exist_ok=True)
+        os.makedirs("data", exist_ok=True)
+        os.makedirs("output", exist_ok=True)
         basename = os.path.basename(Map)
         self.filename, ext = os.path.splitext(basename)
         if num:
