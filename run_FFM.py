@@ -9,7 +9,14 @@ Map = np.load(r"map/Takatsuki_SimpleWall.npy")
 print(Map)
 
 fig, ax = plt.subplots(figsize=(10, 10))
-ax.imshow(Map, cmap=cmap, vmin=0, vmax=1)
+ax.imshow(Map, cmap=cmap, vmin=0, vmax=3)
+plt.tight_layout()
+plt.show()
+
+SFF = np.load(r"SFF/Takatsuki.npy")
+fig, ax = plt.subplots(figsize=(10, 10))
+im = ax.imshow(SFF)
+fig.colorbar(im, ax=ax)
 plt.tight_layout()
 plt.show()
 
