@@ -284,7 +284,7 @@ if __name__ == "__main__":
 
     upperleft = [min_lat, min_lon]
     lowerright = [max_lat, max_lon]
-    cm = CreateMap(upperleft, lowerright, name="Test")
+    cm = CreateMap(upperleft, lowerright, name="Takatsuki")
     cm.create(size=0.5)
     # cm.add_wall()
     cm.create_xlsx()
