@@ -5,10 +5,18 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import osmnx as ox
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl.utils.dataframe import dataframe_to_rows
 from pyproj import Transformer
 from scipy.ndimage import binary_fill_holes
 from shapely.geometry import box
 from tqdm import tqdm
+
+cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green", "blue"])
 
 
 def prompt_continue():
@@ -27,7 +35,8 @@ class CreateMap:
         self.max_lat = lowerright[0]
         self.max_lon = lowerright[1]
         self.name = name
-        os.makedirs("map", exist_ok=True)
+        if not os.path.exists("Map"):
+            os.makedirs("Map")
         if os.path.exists("Map.json"):
             with open("Map.json", "r") as file:
                 existing_data = json.load(file)
@@ -48,7 +57,7 @@ class CreateMap:
             json.dump(existing_data, file, indent=4)
 
     def create(self, size=0.5):
-        buildings = ox.geometries_from_bbox(
+        buildings = ox.features_from_bbox(
             north=self.max_lat,
             south=self.min_lat,
             west=self.min_lon,
@@ -74,6 +83,7 @@ class CreateMap:
         grid = np.zeros((rows, cols), dtype=int)
 
         # GeoDataFrameをUTMに変換
+        # GeoDataFrameをUTMに変換
         buildings_utm = buildings.to_crs(transformer.target_crs)
 
         # R-treeインデックスを作成
@@ -96,16 +106,18 @@ class CreateMap:
                         possible_matches.intersects(cell)
                     ]
                     if not precise_matches.empty:
-                        grid[i, j] = 1
+                        grid[i, j] = 2  # 建物のセルを2でマーク
 
         # grid変数には、建物の位置を示す二次元配列が含まれています
         grid = np.flipud(grid)
-        grid = binary_fill_holes(grid).astype(int)
+        building_mask = grid == 2
+        filled_building_mask = binary_fill_holes(building_mask).astype(int)
+        grid[filled_building_mask == 1] = 2
         print(grid)
-        np.save(rf"map/{self.name}", grid)
+        np.save(rf"Map/{self.name}", grid)
 
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax.imshow(grid, cmap="binary", vmin=0, vmax=1)
+        ax.imshow(grid, cmap=cmap, vmin=0, vmax=3)
         plt.tight_layout()
         plt.show()
 
@@ -129,20 +141,139 @@ class CreateMap:
     def add_wall(self, name=None):
         if name is None:
             name = self.name
-        self.Map = np.load(rf"map/{name}.npy")
-        self.Map[self.Map == 1] = 2
+        self.Map = np.load(rf"Map/{name}.npy")
         print(self.Map)
 
         wall = self.simple_wall()
         exit = self.center_exit()
-        np.save(rf"map/{name}_{wall}_{exit}", self.Map)
-
-        cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green"])
+        np.save(rf"Map/{name}_{wall}_{exit}", self.Map)
 
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax.imshow(self.Map, cmap=cmap, vmin=0, vmax=3)
+        ax.imshow(self.Map, cmap=cmap, vmin=0, vmax=4)
         plt.tight_layout()
         plt.show()
+
+    def create_xlsx(self, name=None):
+        if name is None:
+            name = self.name
+        self.Map = np.load(rf"Map/{name}.npy")
+        print(self.Map)
+        # pandasのDataFrameに変換
+        df = pd.DataFrame(self.Map)
+
+        # 新しいExcelワークブックを作成
+        wb = Workbook()
+        ws = wb.active
+
+        # DataFrameをExcelシートに変換
+        for r_idx, row in enumerate(
+            dataframe_to_rows(df, index=False, header=False), 1
+        ):
+            for c_idx, value in enumerate(row, 1):
+                ws.cell(row=r_idx, column=c_idx, value=value)
+
+        max_row = df.shape[0]
+        max_col = get_column_letter(df.shape[1])
+        format_range = f"A1:{max_col}{max_row}"
+
+        # 2の場合は黒で塗りつぶす（文字色も黒）
+        black_fill = PatternFill(
+            start_color="000001", end_color="000001", fill_type="solid"
+        )
+        black_font = Font(color="000000")
+        ws.conditional_formatting.add(
+            format_range,
+            CellIsRule(
+                operator="equal",
+                formula=["2"],
+                stopIfTrue=True,
+                fill=black_fill,
+                font=black_font,
+            ),
+        )
+
+        # 3の場合は緑で塗りつぶす（文字色も緑）
+        green_fill = PatternFill(
+            start_color="00FF00", end_color="00FF00", fill_type="solid"
+        )
+        green_font = Font(color="00FF00")
+        ws.conditional_formatting.add(
+            format_range,
+            CellIsRule(
+                operator="equal",
+                formula=["3"],
+                stopIfTrue=True,
+                fill=green_fill,
+                font=green_font,
+            ),
+        )
+
+        # 0の場合は白で塗りつぶす（文字色も白）
+        white_fill = PatternFill(
+            start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"
+        )
+        white_font = Font(color="FFFFFF")
+        ws.conditional_formatting.add(
+            format_range,
+            CellIsRule(
+                operator="equal",
+                formula=["0"],
+                stopIfTrue=True,
+                fill=white_fill,
+                font=white_font,
+            ),
+        )
+
+        # 1の場合は赤で塗りつぶす（文字色も赤）
+        red_fill = PatternFill(
+            start_color="FF0000", end_color="FF0000", fill_type="solid"
+        )
+        red_font = Font(color="FF0000")
+        ws.conditional_formatting.add(
+            format_range,
+            CellIsRule(
+                operator="equal",
+                formula=["1"],
+                stopIfTrue=True,
+                fill=red_fill,
+                font=red_font,
+            ),
+        )
+
+        # 4の場合は青で塗りつぶす（文字色も青）
+        blue_fill = PatternFill(
+            start_color="0000FF", end_color="0000FF", fill_type="solid"
+        )
+        blue_font = Font(color="0000FF")
+        ws.conditional_formatting.add(
+            format_range,
+            CellIsRule(
+                operator="equal",
+                formula=["4"],
+                stopIfTrue=True,
+                fill=blue_fill,
+                font=blue_font,
+            ),
+        )
+        COLUMN_WIDTH_FACTOR = 6
+        ROW_HEIGHT_FACTOR = 0.75
+
+        # 正方形のサイズを15x15ピクセルに設定
+        square_size = 15
+        column_width = square_size / COLUMN_WIDTH_FACTOR  # 列の幅の設定値
+        row_height = square_size * ROW_HEIGHT_FACTOR  # 行の高さの設定値
+
+        # セルのサイズを正方形に設定
+        for col in range(1, ws.max_column + 1):
+            ws.column_dimensions[get_column_letter(col)].width = column_width
+
+        for row in range(1, ws.max_row + 1):
+            ws.row_dimensions[row].height = row_height
+
+        # ファイルに保存
+        wb.save(rf"Map/{name}.xlsx")
+        print(rf"Map/{name}.xlsx にxlsxが保存されているので出口などを書き換えてください．")
+        sys.exit()
 
 
 if __name__ == "__main__":
@@ -155,4 +286,5 @@ if __name__ == "__main__":
     lowerright = [max_lat, max_lon]
     cm = CreateMap(upperleft, lowerright, name="Test")
     cm.create(size=0.5)
-    cm.add_wall()
+    # cm.add_wall()
+    cm.create_xlsx()
