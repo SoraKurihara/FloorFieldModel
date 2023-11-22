@@ -3,27 +3,21 @@ import numpy as np
 
 from FloorFieldModel import FloorFieldModel
 
-cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green"])
+cmap = plt.cm.colors.ListedColormap(["white", "red", "black", "green", "blue"])
 
 Map = np.load(r"map/Takatsuki_SimpleWall.npy")
 print(Map)
 
 fig, ax = plt.subplots(figsize=(10, 10))
-ax.imshow(Map, cmap=cmap, vmin=0, vmax=3)
-plt.tight_layout()
-plt.show()
-
-SFF = np.load(r"SFF/Takatsuki.npy")
-fig, ax = plt.subplots(figsize=(10, 10))
-im = ax.imshow(SFF)
-fig.colorbar(im, ax=ax)
+ax.imshow(Map, cmap=cmap, vmin=0, vmax=4)
 plt.tight_layout()
 plt.show()
 
 model = FloorFieldModel(
-    r"map/Takatsuki_SimpleWall.npy",
-    num=0,
-    pedestrian_count=10000,
+    r"map/Takatsuki.xlsx",
+    num=1,
+    inflow=True,
+    pedestrian_count=3000,
 )
 model.run(steps=10000)
 model.plot()

@@ -4,6 +4,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import skfmm
 from tqdm import tqdm
 
 
@@ -18,9 +19,18 @@ def prompt_continue():
 
 class FloorFieldModel:
     def __init__(
-        self, Map, SFF=None, num=0, Position=None, add_name=None, pedestrian_count=1
+        self,
+        Map,
+        SFF=None,
+        num=0,
+        Position=None,
+        add_name=None,
+        pedestrian_count=1,
+        inflow=False,
     ):
+        self.inflow = inflow
         os.makedirs("map", exist_ok=True)
+        os.makedirs("SFF", exist_ok=True)
         os.makedirs("data", exist_ok=True)
         os.makedirs("output", exist_ok=True)
         basename = os.path.basename(Map)
@@ -84,25 +94,41 @@ class FloorFieldModel:
             print(f"{SFF} を読み込みます．")
             self.SFF = np.load(SFF)
         else:
-            self.initialize_sff()
+            self.new_sff()
+            # self.initialize_sff()
             name = self.filename.rsplit("_", 1)
             np.save(os.path.join("SFF", name[0]), self.SFF)
         self.initialize_dff()
-        if (type(Position) == np.ndarray) or (type(Position) == list):
-            self.positions = Position
-            for y, x in self.positions:
-                self.Map[int(y), int(x)] = 1
+        if self.inflow:
+            self.positions = np.argwhere(self.Map == 4)
+            self.N -= len(self.positions)
+            for pos in self.positions:
+                self.Map[tuple(pos)] = 1
         else:
-            self.initialize_positions()
+            if (type(Position) == np.ndarray) or (type(Position) == list):
+                self.positions = Position
+                for y, x in self.positions:
+                    self.Map[int(y), int(x)] = 1
+            else:
+                self.initialize_positions()
         self.save_positions()
         print(self.SFF)
         print()
         print(self.Map)
 
+    def new_sff(self):
+        phi = np.ones_like(self.Map)
+        phi[self.Map == 3] = 0
+        mask = self.Map == 2
+        phi = np.ma.MaskedArray(phi, mask)
+        self.SFF = skfmm.distance(phi, dx=1)
+        self.SFF = np.where(self.SFF.mask, -1, self.SFF.data)
+
     def initialize_sff(self):
         self.SFF = np.zeros_like(self.Map, dtype=np.int64)
         self.SFF[self.Map == 2] = -2
         self.SFF[self.Map == 0] = -1
+        self.SFF[self.Map == 4] = -1
 
         count = 0
         while -1 in self.SFF:
@@ -238,13 +264,14 @@ class FloorFieldModel:
             if any((pos == exit_pos).all() for exit_pos in self.Exit):
                 to_remove.append(i)
         self.positions = np.delete(self.positions, to_remove, axis=0)
+        self.N -= len(to_remove)
 
     def update_DFF(self, alpha=0.2, delta=0.2):
-        center = (1-alpha)*(1-delta)*self.DFF
-        up = alpha*(1-delta)/4*np.roll(self.DFF, shift=1, axis=0)
-        down = alpha*(1-delta)/4*np.roll(self.DFF, shift=-1, axis=0)
-        left = alpha*(1-delta)/4*np.roll(self.DFF, shift=1, axis=1)
-        right = alpha*(1-delta)/4*np.roll(self.DFF, shift=-1, axis=1)
+        center = (1 - alpha) * (1 - delta) * self.DFF
+        up = alpha * (1 - delta) / 4 * np.roll(self.DFF, shift=1, axis=0)
+        down = alpha * (1 - delta) / 4 * np.roll(self.DFF, shift=-1, axis=0)
+        left = alpha * (1 - delta) / 4 * np.roll(self.DFF, shift=1, axis=1)
+        right = alpha * (1 - delta) / 4 * np.roll(self.DFF, shift=-1, axis=1)
         self.DFF = center + up + down + left + right
         self.DFF[self.Map == 2] = 0
         self.DFF[self.Map == 3] = 0
@@ -252,6 +279,11 @@ class FloorFieldModel:
 
     def update(self):
         self.update_DFF()
+        if self.inflow:
+            new_ped = np.argwhere(self.Map == 4)
+            new_ped = new_ped[: self.N]
+            self.N -= len(new_ped)
+            self.positions = np.r_[self.positions, new_ped]
         self.Map = np.copy(self.original)
         for pos in self.positions:
             self.Map[tuple(pos)] = 1
@@ -307,9 +339,12 @@ class FloorFieldModel:
             top=False,
         )
         # plt.tight_layout()
-        ani.save(os.path.join("output", f"{self.filename}.mp4"), writer="ffmpeg", fps=10)
+        ani.save(
+            os.path.join("output", f"{self.filename}.mp4"), writer="ffmpeg", fps=10
+        )
         plt.show()
         self.conn.close()
+
 
 # if __name__ == "__main__":
 #     model = FloorFieldModel(
