@@ -94,8 +94,7 @@ class FloorFieldModel:
             print(f"{SFF} を読み込みます．")
             self.SFF = np.load(SFF)
         else:
-            self.new_sff()
-            # self.initialize_sff()
+            self.initialize_sff()
             name = self.filename.rsplit("_", 1)
             np.save(os.path.join("SFF", name[0]), self.SFF)
         self.initialize_dff()
@@ -116,15 +115,7 @@ class FloorFieldModel:
         print()
         print(self.Map)
 
-    def new_sff(self):
-        phi = np.ones_like(self.Map)
-        phi[self.Map == 3] = 0
-        mask = self.Map == 2
-        phi = np.ma.MaskedArray(phi, mask)
-        self.SFF = skfmm.distance(phi, dx=1)
-        self.SFF = np.where(self.SFF.mask, -1, self.SFF.data)
-
-    def initialize_sff(self):
+    def L1norm(self):
         self.SFF = np.zeros_like(self.Map, dtype=np.int64)
         self.SFF[self.Map == 2] = -2
         self.SFF[self.Map == 0] = -1
@@ -142,10 +133,23 @@ class FloorFieldModel:
             count += 1
         self.SFF[self.SFF == -2] = -1
 
+    def L2norm(self):
+        phi = np.ones_like(self.Map)
+        phi[self.Map == 3] = 0
+        mask = self.Map == 2
+        phi = np.ma.MaskedArray(phi, mask)
+        self.SFF = skfmm.distance(phi, dx=1)
+        self.SFF = np.where(self.SFF.mask, -1, self.SFF.data)
+
+    def initialize_sff(self):
+        # self.L1norm()
+        self.L2norm()
+
     def initialize_positions(self):
         Zero = np.argwhere(self.Map == 0)
         pos_indices = np.random.choice(len(Zero), self.N, replace=False)
         self.positions = Zero[pos_indices]
+        self.directions = np.ones(len(self.positions[:,0]))*4
 
         for pos in self.positions:
             self.Map[tuple(pos)] = 1
@@ -171,9 +175,10 @@ class FloorFieldModel:
         conn.commit()
         conn.close()
 
-    def calculate_movement_probabilities(self, k_S=3, k_D=1):
+    def calculate_movement_probabilities(self, k_S=3, k_D=1, k_Dir=1, k_str=1):
         directions = [(1, 0), (-1, 0), (1, 1), (-1, 1), (0, 0)]  # 上下左右止
         M_vals, S_vals, D_vals = [], [], []
+        Direction_vals = []
 
         for shift, axis in directions:
             M_vals.append(
@@ -197,13 +202,16 @@ class FloorFieldModel:
         S_vals = np.where(S_vals == -1, S_max, S_vals)
         S_vals = S_vals - S_vals.min(axis=0)
 
+        for i in range(5):
+            Direction_vals.append(self.directions == i)
+
         # 各方向の移動確率を計算
         probs = np.array(
             [
-                np.exp(-k_S * val[0] + k_D * val[1])
+                np.exp(-k_S * val[0] + k_D * val[1] + k_Dir * val[3])
                 * (val[2] != 2)
                 * ((val[2] != 1) & (i != 4))
-                for i, val in enumerate(zip(S_vals, D_vals, M_vals))
+                for i, val in enumerate(zip(S_vals, D_vals, M_vals, Direction_vals))
             ]
         )
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]  # 上下左右止
@@ -225,7 +233,7 @@ class FloorFieldModel:
         self.movement_probs = probs
 
     def handle_collisions(self, candidates, unique_positions, counts):
-        duplicates = unique_positions[counts > 1]
+        duplicates = unique_positions[counts > 1] 
 
         # 重複している位置ごとの処理
         for dup in duplicates:
@@ -258,12 +266,14 @@ class FloorFieldModel:
         if sum(counts > 1) > 0:
             candidates = self.handle_collisions(candidates, unique_positions, counts)
         self.positions = candidates
+        self.directions = np.array(candidate_index)
 
         to_remove = []
         for i, pos in enumerate(self.positions):
             if any((pos == exit_pos).all() for exit_pos in self.Exit):
                 to_remove.append(i)
         self.positions = np.delete(self.positions, to_remove, axis=0)
+        self.directions = np.delete(self.directions, to_remove)
         self.N -= len(to_remove)
 
     def update_DFF(self, alpha=0.2, delta=0.2):
