@@ -100,6 +100,7 @@ class FloorFieldModel:
         self.initialize_dff()
         if self.inflow:
             self.positions = np.argwhere(self.Map == 4)
+            self.directions = np.ones(len(self.positions[:, 0])) * 4
             self.N -= len(self.positions)
             for pos in self.positions:
                 self.Map[tuple(pos)] = 1
@@ -149,7 +150,7 @@ class FloorFieldModel:
         Zero = np.argwhere(self.Map == 0)
         pos_indices = np.random.choice(len(Zero), self.N, replace=False)
         self.positions = Zero[pos_indices]
-        self.directions = np.ones(len(self.positions[:,0]))*4
+        self.directions = np.ones(len(self.positions[:, 0])) * 4
 
         for pos in self.positions:
             self.Map[tuple(pos)] = 1
@@ -233,7 +234,7 @@ class FloorFieldModel:
         self.movement_probs = probs
 
     def handle_collisions(self, candidates, unique_positions, counts):
-        duplicates = unique_positions[counts > 1] 
+        duplicates = unique_positions[counts > 1]
 
         # 重複している位置ごとの処理
         for dup in duplicates:
@@ -292,8 +293,10 @@ class FloorFieldModel:
         if self.inflow:
             new_ped = np.argwhere(self.Map == 4)
             new_ped = new_ped[: self.N]
+            new_dir = np.ones(len(new_ped))*4
             self.N -= len(new_ped)
             self.positions = np.r_[self.positions, new_ped]
+            self.directions = np.r_[self.directions, new_dir]
         self.Map = np.copy(self.original)
         for pos in self.positions:
             self.Map[tuple(pos)] = 1
