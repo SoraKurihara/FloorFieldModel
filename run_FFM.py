@@ -19,5 +19,5 @@ model = FloorFieldModel(
     inflow=True,
     pedestrian_count=3000,
 )
-model.run(steps=100)
+model.run(steps=1000)
 model.plot()
