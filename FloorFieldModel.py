@@ -100,7 +100,6 @@ class FloorFieldModel:
         self.initialize_dff()
         if self.inflow:
             self.positions = np.argwhere(self.Map == 4)
-            self.directions = np.ones(len(self.positions[:, 0])) * 4
             self.N -= len(self.positions)
             for pos in self.positions:
                 self.Map[tuple(pos)] = 1
@@ -112,6 +111,8 @@ class FloorFieldModel:
             else:
                 self.initialize_positions()
         self.save_positions()
+        self.directions = np.ones(len(self.positions[:, 0])) * 4
+        self.stresses = np.zeros(len(self.positions[:, 0]))
         print(self.SFF)
         print()
         print(self.Map)
@@ -176,7 +177,7 @@ class FloorFieldModel:
         conn.commit()
         conn.close()
 
-    def calculate_movement_probabilities(self, k_S=3, k_D=1, k_Dir=1, k_str=1):
+    def calculate_movement_probabilities(self, k_S=3, k_D=1, k_Dir=1, k_Str=10):
         directions = [(1, 0), (-1, 0), (1, 1), (-1, 1), (0, 0)]  # 上下左右止
         M_vals, S_vals, D_vals = [], [], []
         Direction_vals = []
@@ -203,13 +204,29 @@ class FloorFieldModel:
         S_vals = np.where(S_vals == -1, S_max, S_vals)
         S_vals = S_vals - S_vals.min(axis=0)
 
-        for i in range(5):
-            Direction_vals.append(self.directions == i)
+        Direction_vals.append(
+            np.where(self.directions == 0, 1, np.where(self.directions == 1, -1, 0))
+        )
+        Direction_vals.append(
+            np.where(self.directions == 1, 1, np.where(self.directions == 0, -1, 0))
+        )
+        Direction_vals.append(
+            np.where(self.directions == 2, 1, np.where(self.directions == 3, -1, 0))
+        )
+        Direction_vals.append(
+            np.where(self.directions == 3, 1, np.where(self.directions == 2, -1, 0))
+        )
+        Direction_vals.append(np.zeros_like(self.directions))
 
         # 各方向の移動確率を計算
         probs = np.array(
             [
-                np.exp(-k_S * val[0] + k_D * val[1] + k_Dir * val[3])
+                np.exp(
+                    -k_S * val[0]
+                    + k_D * val[1]
+                    + k_Dir * val[3]
+                    - k_Str * ((i == 4) * self.stresses / 1)
+                )
                 * (val[2] != 2)
                 * ((val[2] != 1) & (i != 4))
                 for i, val in enumerate(zip(S_vals, D_vals, M_vals, Direction_vals))
@@ -266,6 +283,8 @@ class FloorFieldModel:
         unique_positions, counts = np.unique(candidates, axis=0, return_counts=True)
         if sum(counts > 1) > 0:
             candidates = self.handle_collisions(candidates, unique_positions, counts)
+        self.stresses[np.all(self.positions == candidates, axis=1)] += 1
+        self.stresses[np.all(self.positions != candidates, axis=1)] = 0
         self.positions = candidates
         self.directions = np.array(candidate_index)
 
@@ -275,6 +294,7 @@ class FloorFieldModel:
                 to_remove.append(i)
         self.positions = np.delete(self.positions, to_remove, axis=0)
         self.directions = np.delete(self.directions, to_remove)
+        self.stresses = np.delete(self.stresses, to_remove)
         self.N -= len(to_remove)
 
     def update_DFF(self, alpha=0.2, delta=0.2):
@@ -293,10 +313,12 @@ class FloorFieldModel:
         if self.inflow:
             new_ped = np.argwhere(self.Map == 4)
             new_ped = new_ped[: self.N]
-            new_dir = np.ones(len(new_ped))*4
+            new_dir = np.ones(len(new_ped)) * 4
+            new_str = np.zeros(len(new_ped))
             self.N -= len(new_ped)
             self.positions = np.r_[self.positions, new_ped]
             self.directions = np.r_[self.directions, new_dir]
+            self.stresses = np.r_[self.stresses, new_str]
         self.Map = np.copy(self.original)
         for pos in self.positions:
             self.Map[tuple(pos)] = 1

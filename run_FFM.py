@@ -15,7 +15,7 @@ plt.show()
 
 model = FloorFieldModel(
     r"map/Takatsuki.xlsx",
-    num=2,
+    num=3,
     inflow=True,
     pedestrian_count=3000,
 )
