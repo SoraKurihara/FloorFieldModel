@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from .cp.calc_probability import p_ij
 from .dcm.distance_calc_method import L1norm, L2norm
 from .sql.create_and_save_sqlite import create_sqlite, save_sqlite
 
@@ -100,6 +101,9 @@ class FloorFieldModel:
         elif method == "L2":
             self.SFF = L2norm(self.Map)
 
+    def initialize_dff(self):
+        self.DFF = np.zeros_like(self.Map)
+
     def initialize_positions(self):
         Zero = np.argwhere(self.Map == 0)
         pos_indices = np.random.choice(len(Zero), self.N, replace=False)
@@ -108,82 +112,6 @@ class FloorFieldModel:
 
         for pos in self.positions:
             self.Map[tuple(pos)] = 1
-
-    def initialize_dff(self):
-        self.DFF = np.zeros_like(self.Map)
-
-    def calculate_movement_probabilities(self, k_S=3, k_D=1, k_Dir=1, k_Str=10):
-        directions = [(1, 0), (-1, 0), (1, 1), (-1, 1), (0, 0)]  # 上下左右止
-        M_vals, S_vals, D_vals = [], [], []
-        Direction_vals = []
-
-        for shift, axis in directions:
-            M_vals.append(
-                np.roll(self.Map, shift=shift, axis=axis)[
-                    self.positions[:, 0], self.positions[:, 1]
-                ]
-            )
-            S_vals.append(
-                np.roll(self.SFF, shift=shift, axis=axis)[
-                    self.positions[:, 0], self.positions[:, 1]
-                ]
-            )
-            D_vals.append(
-                np.roll(self.DFF, shift=shift, axis=axis)[
-                    self.positions[:, 0], self.positions[:, 1]
-                ]
-            )
-
-        S_vals = np.array(S_vals)
-        S_max = S_vals.max(axis=0)
-        S_vals = np.where(S_vals == -1, S_max, S_vals)
-        S_vals = S_vals - S_vals.min(axis=0)
-
-        Direction_vals.append(
-            np.where(self.directions == 0, 1, np.where(self.directions == 1, -1, 0))
-        )
-        Direction_vals.append(
-            np.where(self.directions == 1, 1, np.where(self.directions == 0, -1, 0))
-        )
-        Direction_vals.append(
-            np.where(self.directions == 2, 1, np.where(self.directions == 3, -1, 0))
-        )
-        Direction_vals.append(
-            np.where(self.directions == 3, 1, np.where(self.directions == 2, -1, 0))
-        )
-        Direction_vals.append(np.zeros_like(self.directions))
-
-        # 各方向の移動確率を計算
-        probs = np.array(
-            [
-                np.exp(
-                    -k_S * val[0]
-                    + k_D * val[1]
-                    + k_Dir * val[3]
-                    - k_Str * ((i == 4) * self.stresses / 1)
-                )
-                * (val[2] != 2)
-                * ((val[2] != 1) & (i != 4))
-                for i, val in enumerate(zip(S_vals, D_vals, M_vals, Direction_vals))
-            ]
-        )
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]  # 上下左右止
-        for idx, pos in enumerate(self.positions):
-            for i, dir in enumerate(directions):
-                next_pos = tuple(np.array(pos) + np.array(dir))
-                if self.original[next_pos] == 3:
-                    probs[:, idx] = 0
-                    probs[i, idx] = 1
-                    break
-
-        sums = np.sum(probs, axis=0)
-        sums[sums == 0] = 1
-
-        probs = probs / sums
-        probs_tmp = 1 - probs[:-1, :].sum(axis=0)
-        probs_tmp[probs_tmp < 0] = 0
-        probs[-1, :] = probs_tmp
-        self.movement_probs = probs
 
     def handle_collisions(self, candidates, unique_positions, counts):
         duplicates = unique_positions[counts > 1]
@@ -260,7 +188,8 @@ class FloorFieldModel:
 
     def run(self, steps=10):
         for _ in tqdm(range(steps)):
-            self.calculate_movement_probabilities()
+            # self.movement_probs = p_ij(self.Map, self.positions, self.SFF, self.DFF, k_S=3, k_D=1, k_Dir=None, directions=None, k_Str=None, stresses=None)
+            self.movement_probs = p_ij(self.Map, self.positions, self.SFF, self.DFF)
             self.move()
             save_sqlite(self.db, self.positions)
             self.update()
