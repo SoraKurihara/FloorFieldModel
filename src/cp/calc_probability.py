@@ -28,25 +28,33 @@ def p_ij(
     positions,
     SFF,
     DFF,
-    k_S=3,
-    k_D=1,
-    k_Dir=None,
-    directions=None,
-    k_Str=None,
-    stresses=None,
+    params=[3, 1, None, None],
+    paramlists=[None, None],
 ):
+    k_S = params[0]
+    k_D = params[1]
+    k_Dir = params[2]
+    k_Str = params[3]
+    directions = paramlists[0]
+    stresses = paramlists[1]
     shift_axis = [(1, 0), (-1, 0), (1, 1), (-1, 1), (0, 0)]  # 上下左右止
     M_vals, S_vals, D_vals = [], [], []
 
     for shift, axis in shift_axis:
         M_vals.append(
-            np.roll(Map, shift=shift, axis=axis)[positions[:, 0], positions[:, 1]]
+            np.roll(Map, shift=shift, axis=axis)[
+                positions[:, 0], positions[:, 1]
+            ]
         )
         S_vals.append(
-            np.roll(SFF, shift=shift, axis=axis)[positions[:, 0], positions[:, 1]]
+            np.roll(SFF, shift=shift, axis=axis)[
+                positions[:, 0], positions[:, 1]
+            ]
         )
         D_vals.append(
-            np.roll(DFF, shift=shift, axis=axis)[positions[:, 0], positions[:, 1]]
+            np.roll(DFF, shift=shift, axis=axis)[
+                positions[:, 0], positions[:, 1]
+            ]
         )
 
     S_vals = np.array(S_vals)
@@ -57,9 +65,9 @@ def p_ij(
     # 各方向の移動確率を計算
     probs = np.exp(-k_S * S_vals)
     probs *= np.exp(k_D * D_vals)
-    if (k_Dir != None) and (directions != None):
+    if (k_Dir is not None) and (directions is not None):
         probs *= calc_direction(k_Dir, directions)
-    if (k_Str != None) and (stresses != None):
+    if (k_Str is not None) and (stresses is not None):
         probs[4] *= calc_stress(k_Str, stresses)
 
     probs *= M_vals != 2
