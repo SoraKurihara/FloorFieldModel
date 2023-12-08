@@ -66,9 +66,15 @@ class CreateMap:
         )
 
         # Transformerを使用してWGS84の緯度経度座標系からUTM座標系への変換
-        transformer = Transformer.from_crs("EPSG:4326", "EPSG:32654", always_xy=True)
-        utm_min_x, utm_min_y = transformer.transform(self.min_lon, self.min_lat)
-        utm_max_x, utm_max_y = transformer.transform(self.max_lon, self.max_lat)
+        transformer = Transformer.from_crs(
+            "EPSG:4326", "EPSG:32654", always_xy=True
+        )
+        utm_min_x, utm_min_y = transformer.transform(
+            self.min_lon, self.min_lat
+        )
+        utm_max_x, utm_max_y = transformer.transform(
+            self.max_lon, self.max_lat
+        )
 
         # UTM座標でのバウンディングボックス
         x_min, y_min = utm_min_x, utm_min_y
@@ -101,7 +107,9 @@ class CreateMap:
                 possible_matches_index = list(sindex.intersection(cell.bounds))
                 if possible_matches_index:
                     # 重なる建物があるかどうか確認
-                    possible_matches = buildings_utm.iloc[possible_matches_index]
+                    possible_matches = buildings_utm.iloc[
+                        possible_matches_index
+                    ]
                     precise_matches = possible_matches[
                         possible_matches.intersects(cell)
                     ]
@@ -124,7 +132,8 @@ class CreateMap:
     def simple_wall(self):
         Wall = np.where(self.Map == 2)
         self.Map = self.Map[
-            min(Wall[0]) - 2 : max(Wall[0]) + 2, min(Wall[1]) - 2 : max(Wall[1]) + 2
+            min(Wall[0]) - 2 : max(Wall[0]) + 2,
+            min(Wall[1]) - 2 : max(Wall[1]) + 2,
         ]
         self.Map[0, :] = 2
         self.Map[-1, :] = 2

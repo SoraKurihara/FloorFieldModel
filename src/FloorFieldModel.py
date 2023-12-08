@@ -110,7 +110,8 @@ class FloorFieldModel:
         self.Map = np.copy(self.original)
 
         if self.N == 0:
-            self.inflow = 100
+            if self.inflow == None:
+                self.inflow = 100
         else:
             self.initialize_positions()
 
