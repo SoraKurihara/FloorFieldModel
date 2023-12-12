@@ -30,6 +30,7 @@ def p_ij(
     DFF,
     params=[3, 1, None, None],
     paramlists=[None, None],
+    d="Neumann",
 ):
     k_S = params[0]
     k_D = params[1]
@@ -37,25 +38,24 @@ def p_ij(
     k_Str = params[3]
     directions = paramlists[0]
     stresses = paramlists[1]
-    shift_axis = [(1, 0), (-1, 0), (1, 1), (-1, 1), (0, 0)]  # 上下左右止
+    shift_axis = [(-1, 1), (1, 0), (1, 1), (-1, 0), (0, 0)]  # 右上左下止
     M_vals, S_vals, D_vals = [], [], []
 
-    for shift, axis in shift_axis:
-        M_vals.append(
-            np.roll(Map, shift=shift, axis=axis)[
-                positions[:, 0], positions[:, 1]
-            ]
-        )
-        S_vals.append(
-            np.roll(SFF, shift=shift, axis=axis)[
-                positions[:, 0], positions[:, 1]
-            ]
-        )
-        D_vals.append(
-            np.roll(DFF, shift=shift, axis=axis)[
-                positions[:, 0], positions[:, 1]
-            ]
-        )
+    for idx, (shift, axis) in enumerate(shift_axis):
+        M_shift = np.roll(Map, shift=shift, axis=axis)
+        M_vals.append(M_shift[positions[:, 0], positions[:, 1]])
+        S_shift = np.roll(SFF, shift=shift, axis=axis)
+        S_vals.append(S_shift[positions[:, 0], positions[:, 1]])
+        D_shift = np.roll(DFF, shift=shift, axis=axis)
+        D_vals.append(D_shift[positions[:, 0], positions[:, 1]])
+        if (d == "Moore") & (idx != 4):
+            shift, axis = shift_axis[:4][idx - 1]
+            M_shift = np.roll(M_shift, shift=shift, axis=axis)
+            M_vals.append(M_shift[positions[:, 0], positions[:, 1]])
+            S_shift = np.roll(S_shift, shift=shift, axis=axis)
+            S_vals.append(S_shift[positions[:, 0], positions[:, 1]])
+            D_shift = np.roll(D_shift, shift=shift, axis=axis)
+            D_vals.append(D_shift[positions[:, 0], positions[:, 1]])
 
     S_vals = np.array(S_vals)
     S_max = S_vals.max(axis=0)
@@ -71,9 +71,22 @@ def p_ij(
         probs[4] *= calc_stress(k_Str, stresses)
 
     probs *= M_vals != 2
-    probs[:4] *= M_vals[:4] != 1
+    probs[:-1] *= M_vals[:-1] != 1
 
-    move = [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]  # 上下左右止
+    if d == "Neumann":
+        move = [(0, 1), (-1, 0), (0, -1), (1, 0), (0, 0)]  # 右上左下止
+    else:
+        move = [
+            (0, 1),
+            (1, 1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (-1, -1),
+            (1, 0),
+            (1, -1),
+            (0, 0),
+        ]  # 右右下上右上左左上下左下止
     for idx, pos in enumerate(positions):
         for i, dir in enumerate(move):
             next_pos = tuple(np.array(pos) + np.array(dir))

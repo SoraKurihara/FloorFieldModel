@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from .cp.calc_probability import p_ij
-from .dcm.distance_calc_method import L1norm, L2norm
+from .dcm.distance_calc_method import L1norm, L2norm, Linfnorm
 from .hc.handle_collisions import handle_collisions
 from .sql.create_and_save_sqlite import create_sqlite, save_sqlite
 
@@ -64,6 +64,8 @@ class FloorFieldModel:
             self.SFF = L1norm(self.original)
         elif method == "L2":
             self.SFF = L2norm(self.original)
+        elif method == "Linf":
+            self.SFF = Linfnorm(self.original)
 
     def initialize_dff(self):
         self.DFF = np.zeros_like(self.original)
@@ -76,6 +78,7 @@ class FloorFieldModel:
         k_D=1,
         k_Dir=None,
         k_Str=None,
+        d="Neumann",
     ):
         """parameters setting
 
@@ -94,6 +97,7 @@ class FloorFieldModel:
         self.k_Dir = k_Dir
         self.k_Str = k_Str
         self.parameters = [k_S, k_D, k_Dir, k_Str]
+        self.d = d
 
         self.paraname = (
             f"ks{str(k_S).replace('.', '')}_kd{str(k_D).replace('.', '')}"
@@ -110,7 +114,7 @@ class FloorFieldModel:
         self.Map = np.copy(self.original)
 
         if self.N == 0:
-            if self.inflow == None:
+            if self.inflow is None:
                 self.inflow = 100
         else:
             self.initialize_positions()
@@ -142,11 +146,28 @@ class FloorFieldModel:
             self.Map[tuple(pos)] = 1
 
     def move(self):
-        candidate_list = np.array(
-            [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]
-        )  # 上下左右止
+        if self.d == "Neumann":
+            candidate_list = np.array(
+                [(0, 1), (-1, 0), (0, -1), (1, 0), (0, 0)]
+            )  # 右上左下止
+            idx = [0, 1, 2, 3, 4]
+        else:
+            candidate_list = np.array(
+                [
+                    (0, 1),
+                    (1, 1),
+                    (-1, 0),
+                    (-1, 1),
+                    (0, -1),
+                    (-1, -1),
+                    (1, 0),
+                    (1, -1),
+                    (0, 0),
+                ]
+            )  # 右右下上右上左左上下左下止
+            idx = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         candidate_index = [
-            np.random.choice([0, 1, 2, 3, 4], p=self.movement_probs[:, n])
+            np.random.choice(idx, p=self.movement_probs[:, n])
             for n in range(len(self.movement_probs[0]))
         ]
         candidates = self.positions + candidate_list[candidate_index]
@@ -200,7 +221,12 @@ class FloorFieldModel:
     def run(self, steps=10):
         for _ in tqdm(range(steps)):
             self.movement_probs = p_ij(
-                self.Map, self.positions, self.SFF, self.DFF, self.parameters
+                self.Map,
+                self.positions,
+                self.SFF,
+                self.DFF,
+                params=self.parameters,
+                d=self.d,
             )
             self.move()
             save_sqlite(
