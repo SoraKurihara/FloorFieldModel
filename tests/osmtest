@@ -1,0 +1,9 @@
+min_lat = 34.87598184158452
+min_lon = 135.57329665538347
+max_lat = 34.879592178045755
+max_lon = 135.57754831825054
+
+upperleft = [min_lat, min_lon]
+lowerright = [max_lat, max_lon]
+cm = CreateMap(upperleft, lowerright, name="Takatsuki_")
+cm.create(size=0.5)
