@@ -1,0 +1,2 @@
+def P():
+  print("A")
