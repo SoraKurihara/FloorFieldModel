@@ -1,1 +1,1 @@
-from FloorFieldModel.hc.handle_collisions import p_ij
+from FloorFieldModel.hc.handle_collisions import handle_collisions
