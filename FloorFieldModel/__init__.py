@@ -1,4 +1,4 @@
-from FloorFieldModel import cp, hc, sql
+from FloorFieldModel import cp, dcm, hc, sql
 
 from .FFM import *
 
