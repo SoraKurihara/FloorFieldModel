@@ -1,4 +1,4 @@
-imrort cp
+import cp
 
 def P():
   print("A")
