@@ -3,5 +3,6 @@ name = "FloorFieldModel"
 version = "0.0.1"
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
