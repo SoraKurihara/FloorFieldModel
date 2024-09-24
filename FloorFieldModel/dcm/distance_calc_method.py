@@ -1,5 +1,5 @@
 import numpy as np
-
+import skfmm
 
 def get_outer(arr, Diagonal):
     shift_up = np.roll(arr, -1, axis=0)
