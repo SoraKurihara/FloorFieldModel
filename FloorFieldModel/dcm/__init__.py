@@ -1,1 +1,1 @@
-from FloorFieldModel.dcm.distance_calc_method import L1norm, L2norm, Linfnorm
+from .dcm.distance_calc_method import L1norm, L2norm, Linfnorm
