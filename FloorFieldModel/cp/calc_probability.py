@@ -3,7 +3,6 @@
 # ↑これは対処していない
 
 import numpy as np
-import skfmm
 
 def p_ij(
     Map,
