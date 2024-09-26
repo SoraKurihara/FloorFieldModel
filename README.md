@@ -1,1 +1,85 @@
 # FloorFieldModel
+
+## 概要
+
+### このパッケージの概要
+
+`FloorFieldModel`は、既存の Floor Field モデルを Python 初学者でも簡単に使えるように簡素化したパッケージです。歩行者の動きや避難シミュレーションを手軽に行うためのフレームワークを提供します。
+
+### FloorFieldModel とは
+
+作成中
+
+## 機能
+
+- **簡単に環境設定**: ランダムマップやカスタムマップを利用可能。
+- **距離空間の作成**: マップから距離情報を生成し、シミュレーションに利用。
+- **パラメータの柔軟な設定**: 歩行者数、流入、移動方法、モデルパラメータの設定が可能。
+- **可視化ツール**: シミュレーション結果を可視化して、歩行者の動きや混雑を確認できる。
+- **カスタマイズ可能なシミュレーション**: 独自のパラメータを設定して、シミュレーションを実行可能。
+
+## インストール
+
+パッケージをインストールするには、以下の`pip`コマンドを使用します。
+
+```
+pip install FloorFieldModel
+```
+
+もしくは、リポジトリをクローンして手動でインストールできます。
+
+```
+git clone https://github.com/SoraKurihara/FloorFieldModel.git
+cd FloorFieldModel
+pip install .
+```
+
+## 使用方法
+
+このパッケージを使用する際、作業ディレクトリに 4 つのディレクトリ（`map`, `data`, `output`, `SFF`）が作成されます。まず、適切な作業ディレクトリを準備してください。
+
+### 作業ディレクトリの作成例
+
+```
+mkdir my_simulation_project
+cd my_simulation_project
+```
+
+その後、以下の手順でシミュレーションを実行してください。
+
+```
+import FloorFieldModel as FFM
+
+ffm = FFM.FloorFieldModel(Map="random", SFF=None, method="L2")
+ffm.params(N=0, inflow=None, k_S=3, k_D=1, d="Neumann")
+ffm.run(steps=100)
+ffm.plot(footprints=False)
+```
+
+### カスタマイズされたシミュレーション
+
+次のように、マップやパラメータをカスタマイズしてシミュレーションを実行できます。
+
+```
+ffm = FFM.FloorFieldModel(Map="my_custom_map.npy", SFF=None, method="Linf")
+ffm.params(N=100, inflow=50, k_S=10, k_D=1, d="Moore")
+ffm.run(steps=1000)
+ffm.plot(footprints=True)
+```
+
+## 例
+
+`examples`ディレクトリには、以下のような事前定義されたシミュレーションシナリオがあります。
+
+- **map ディレクトリ**: あらかじめ用意されたシミュレーションシナリオが含まれています。
+- **output ディレクトリ**: 実際に作成されたシミュレーション結果の mp4 ファイルが保存されています。
+
+これらのディレクトリを参照して、シミュレーションの実行例や結果を確認することができます。
+
+## 貢献
+
+貢献は大歓迎です！問題やプルリクエスト、または改善提案があればお気軽に提出してください。
+
+## ライセンス
+
+このプロジェクトは MIT ライセンスの下でライセンスされています。詳細は`LICENSE`ファイルをご確認ください。

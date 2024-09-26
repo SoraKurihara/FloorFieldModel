@@ -4,6 +4,7 @@ import sqlite3
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import importlib.resources
 
 from .cp import p_ij
 from .dcm import L1norm, L2norm, Linfnorm
@@ -12,9 +13,17 @@ from .sql import create_sqlite, save_sqlite
 
 
 class FloorFieldModel:
-    def __init__(self, Map, SFF=None, method="L2"):
+    def __init__(self, Map="random", SFF=None, method="L2"):
         self.current_step = 0
         self.create_directories()
+        
+        if Map == "random":
+            with importlib.resources.path('FloorFieldModel.examples.map', '') as folder_path:
+                npy_files = [f for f in os.listdir(folder_path) if f.endswith('.npy')]
+
+                random_npy = np.random.choice(npy_files)
+
+                Map = os.path.join(folder_path, random_npy)
         self.filename, ext = os.path.splitext(os.path.basename(Map))
         self.original = self.load_map(Map, ext)
         self.Exit = np.where(self.original == 3)
