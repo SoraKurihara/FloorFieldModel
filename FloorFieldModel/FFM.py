@@ -288,11 +288,6 @@ class FloorFieldModel:
             self.Map[int(y), int(x)] = 1
             self.sum[int(y), int(x)] += 1
 
-        # self.originalが3である各位置でself.Mapの値を記録
-        for index in self.time_series_data:
-            y, x = index
-            self.time_series_data[index].append(self.Map[y, x])
-
         gradient_mask = (self.Map >= 0) & (self.Map < 1)
 
         # グラデーションカラーマップを適用
@@ -320,11 +315,6 @@ class FloorFieldModel:
         self.indices_of_interest = np.where(self.original == 3)
         # print(self.indices_of_interest)
         # print(len(self.indices_of_interest[0]))
-        # 時系列データを格納するための辞書を初期化
-        self.time_series_data = {
-            index: [] for index in zip(*self.indices_of_interest)
-        }
-        # print(self.time_series_data)
 
         import matplotlib.animation as animation
         import matplotlib.colors as mcolors
@@ -377,127 +367,6 @@ class FloorFieldModel:
             fps=10,
         )
         # plt.show()
-
-        # 時系列データをCSVファイルに保存
-        import pandas as pd
-
-        df = pd.DataFrame.from_dict(
-            self.time_series_data, orient="index"
-        ).transpose()
-        df.to_csv("time_series_data.csv", index=False)
-
-        self.conn.close()
-
-        colors = ["white", "red", "black", "green", "blue"]
-        cmap = mcolors.ListedColormap(colors)
-        fig, ax = plt.subplots(figsize=(10, 10))
-        ax.imshow(self.original, cmap=cmap, vmin=0, vmax=4)
-
-        rows, cols = np.where((self.sum >= 5) & (self.original == 3))
-        sizes = (self.sum[rows, cols] / np.max(self.sum) * 50) ** 2
-        sc = ax.scatter(cols, rows, s=sizes, c=sizes, cmap="YlOrRd", alpha=0.5)
-
-        plt.tick_params(
-            labelbottom=False,
-            labelleft=False,
-            labelright=False,
-            labeltop=False,
-            bottom=False,
-            left=False,
-            right=False,
-            top=False,
-        )
-
-        plt.colorbar(sc, ax=ax, label="Usage")
-
-        # plt.show()
-        plt.savefig(
-            os.path.join(
-                "output",
-                self.paraname,
-                f"{self.filename}_{self.number}_ExitUsed.svg",
-            )
-        )
-
-        ax.clear()
-
-        self.sum = self.sum / np.max(self.sum)
-        rows, cols = self.sum.shape
-
-        cells = 100  # 50m四方
-        pad_height = (cells - rows % cells) % cells
-        pad_width = (cells - cols % cells) % cells
-        padded_array = np.pad(
-            self.sum,
-            ((0, pad_height), (0, pad_width)),
-            "constant",
-            constant_values=0,
-        )
-
-        # ブロックサイズを設定し、ストライドトリックを使用してブロックごとのビューを作成
-        new_shape = (
-            padded_array.shape[0] // cells,
-            padded_array.shape[1] // cells,
-            cells,
-            cells,
-        )
-        new_strides = (
-            padded_array.strides[0] * cells,
-            padded_array.strides[1] * cells,
-        ) + padded_array.strides
-        block_view = as_strided(
-            padded_array, shape=new_shape, strides=new_strides
-        )
-
-        # 各ブロックの合計値を計算し、その合計値でブロック内の要素を更新
-        block_sums = block_view.sum(axis=(2, 3))
-        updated_array = np.repeat(
-            np.repeat(block_sums, cells, axis=0), cells, axis=1
-        )[:rows, :cols]
-
-        colors = ["white", "red", "black", "green", "blue"]
-        cmap = mcolors.ListedColormap(colors)
-
-        # 規格化された配列用のカラーマップを定義（0~1: 白から赤のグラデーション）
-        overlay_cmap = mcolors.LinearSegmentedColormap.from_list(
-            "overlay", ["white", "red"]
-        )
-
-        fig, ax = plt.subplots(figsize=(10, 10))
-        # self.original[self.original != 0] -= 1
-        ax.imshow(self.original, cmap=cmap, vmin=0, vmax=4)
-
-        # 規格化された配列を透明度を持たせて重ねる
-        plt.imshow(
-            updated_array,
-            cmap=overlay_cmap,
-            interpolation="nearest",
-            aspect="equal",
-            alpha=0.8,
-        )
-
-        plt.colorbar()
-        plt.tick_params(
-            labelbottom=False,
-            labelleft=False,
-            labelright=False,
-            labeltop=False,
-            bottom=False,
-            left=False,
-            right=False,
-            top=False,
-        )
-
-        # plt.colorbar(sc, ax=ax, label='Congestion')
-
-        # plt.show()
-        plt.savefig(
-            os.path.join(
-                "output",
-                self.paraname,
-                f"{self.filename}_{self.number}_heatmap.svg",
-            )
-        )
 
 
 if __name__ == "__main__":

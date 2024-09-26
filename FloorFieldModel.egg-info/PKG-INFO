@@ -1,0 +1,19 @@
+Metadata-Version: 2.1
+Name: FloorFieldModel
+Version: 0.1.1
+Summary: A simulation package for Floor Field Model
+Home-page: https://github.com/SoraKurihara/FloorFieldModel
+Author: Sora Kurihara
+Author-email: sorasorasora.918@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: Microsoft :: Windows
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: tqdm==4.65.0
+Requires-Dist: numpy==1.26.1
+Requires-Dist: scikit-fmm==2023.4.2
+
+# FloorFieldModel
