@@ -14,6 +14,7 @@ FloorFieldModel/cp/calc_probability.py
 FloorFieldModel/dcm/__init__.py
 FloorFieldModel/dcm/distance_calc_method.py
 FloorFieldModel/examples/__init__.py
+FloorFieldModel/examples/test.py
 FloorFieldModel/examples/map/__init__.py
 FloorFieldModel/examples/map/corner.npy
 FloorFieldModel/examples/map/room.npy

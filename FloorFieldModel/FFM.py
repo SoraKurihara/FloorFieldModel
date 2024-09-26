@@ -258,7 +258,7 @@ class FloorFieldModel:
         self.update()
         self.remove_pedestrians()
 
-    def run(self, steps=10):
+    def run(self, steps=100):
         for step in tqdm(range(steps)):
             self.current_step = step
             self.update_step()
@@ -376,6 +376,7 @@ class FloorFieldModel:
             fps=10,
         )
         # plt.show()
+        self.conn.close()
 
 
 if __name__ == "__main__":
